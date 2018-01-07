@@ -21,6 +21,8 @@
     var displayArea = document.getElementById('display-area');
     var resultArea = document.getElementById('result-area');
     var scoreArea = document.getElementById('score-area');
+    var timer = null;
+    var autoClickTimer = null;
 
     // 盤面の初期化
     function init(difficulty) {
@@ -30,6 +32,7 @@
         mine.endTime = 0;
         resultArea.innerText = '';
         scoreArea.innerText = '0';
+        clearInterval(autoClickTimer);
 
         // 盤面の画像の削除
         for (var i = 0; i < mine.width; i++) {
@@ -162,6 +165,7 @@
             if (mine.gameStart) {
                 mine.startTime = new Date().getTime();
                 mine.gameStart = false;
+                timer = setInterval(updateTime, 50);
             }
 
             if (mine.openMap[x][y] === 1) {
@@ -227,6 +231,8 @@
             scoreArea.innerText = (mine.endTime - mine.startTime) / 1000;
             mine.gameStart = true;
             mine.game = false;
+            clearInterval(timer);
+            clearInterval(autoClickTimer);
         } else if (surroundMineNum(x, y)) {
             //もしmine.map[x,y]が地雷でなく周りに地雷があったら、そのマスのみを開く
             mine.openMap[x][y] = 0;
@@ -251,6 +257,8 @@
             scoreArea.innerText = (mine.endTime - mine.startTime) / 1000;
             mine.gameStart = true;
             mine.game = false;
+            clearInterval(timer);
+            clearInterval(autoClickTimer);
         }
     }
 
@@ -291,7 +299,122 @@
             scoreArea.innerText = seconds;
         }
     }
-    setInterval(updateTime, 50);
+
+    document.getElementById('auto').onclick = function () {
+        autoClick();
+        autoClickTimer = setInterval(autoClick, 500);
+    };
+
+    var autoClickX = 0;
+    var autoClickY = 0;
+    var autoClickFlag = true;
+    var noFlagFlag = true;
+    function autoClick() {
+        if (mine.game) {
+            if (mine.gameStart) {
+                var rand = Math.floor(Math.random() * mine.width * mine.height);
+                var top = Math.floor(rand / mine.height);
+                var left = rand % mine.width;
+                leftClickAction(top, left);
+                if (surroundMineNum(top, left) !== 0) {
+                    mine.gameStart = true;
+                }
+            } else if (autoClickFlag) {
+                // trueの時、旗を立てる
+                while (1) {
+                    // マスが開いていて、周りに地雷があって、周りの地雷の数と周りのマスの数が同じで、周りの地雷の数と周りの旗の数が違っていれば
+                    //console.log('flag '+autoClickX+' '+autoClickY);
+                    if (autoClickX === mine.width) {
+                        autoClickX = 0;
+                        autoClickY++;
+                    }
+                    if (autoClickY === mine.height) {
+                        console.log('flag ok');
+                        autoClickX = 0;
+                        autoClickY = 0;
+                        autoClickFlag = false;
+                        if (noFlagFlag) {
+                            clearInterval(autoClickTimer);
+                            //autoClickFlag = true;
+                        }
+                        noFlagFlag = true;
+                        return;
+                    }
+                    if ( mine.openMap[autoClickX][autoClickY] === 0 && surroundMineNum(autoClickX,autoClickY) !== 0 && surroundMineNum(autoClickX,autoClickY) === surroundSquareNum(autoClickX,autoClickY) && surroundMineNum(autoClickX,autoClickY) !== surroundFlagNum(autoClickX,autoClickY)　) {
+                        console.log('flag '+autoClickX+' '+autoClickY);
+                        noFlagFlag = false;
+                        break;
+                    }
+                    autoClickX++;
+                }
+                for (var i = -1; i < 2; i++) {
+                    for (var j = -1; j < 2; j++) {
+                        if (0 <= autoClickX + i && autoClickX + i < mine.width && 0 <= autoClickY + j && autoClickY + j < mine.height) {
+                            if (mine.openMap[autoClickX + i][autoClickY + j] === 1) {
+                                rightClickAction(autoClickX + i, autoClickY + j);
+                            }
+                        }
+                    }
+                }
+                autoClickX++;
+            } else {
+                // falseの時、マスを開ける
+                while (1) {
+                    // マスが開いていて、周りに地雷があって、周りの地雷の数と周りの旗の数が同じで、周りの地雷の数と周りのマスの数が違っていれば
+                    if (autoClickX === mine.width) {
+                        autoClickX = 0;
+                        autoClickY++;
+                    }
+                    if (autoClickY === mine.height) {
+                        console.log('open ok');
+                        autoClickX = 0;
+                        autoClickY = 0;
+                        autoClickFlag = true;
+                        return;
+                    }
+                    if ( mine.openMap[autoClickX][autoClickY] === 0 && surroundMineNum(autoClickX,autoClickY) !== 0 && surroundMineNum(autoClickX,autoClickY) === surroundFlagNum(autoClickX,autoClickY) && surroundMineNum(autoClickX,autoClickY) !== surroundSquareNum(autoClickX,autoClickY) ) {
+                        console.log('open '+autoClickX+' '+autoClickY);
+                        break;
+                    }
+                    autoClickX++;
+                }
+                leftAndRightClickAction(autoClickX, autoClickY);
+                autoClickX++;
+            }
+        }
+    }
+
+    // 周りの開いてないマスの数を数える
+    function surroundSquareNum(x, y) {
+        var count = 0;
+        for (var i = -1; i < 2; i++) {
+            for (var j = -1; j < 2; j++) {
+                if (0 <= x + i && x + i < mine.width && 0 <= y + j && y + j < mine.height) {
+                    if (mine.openMap[x + i][y + j] !== 0){
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    // 周りの旗の数を数える
+    function surroundFlagNum(x, y) {
+        var count = 0;
+        for (var i = -1; i < 2; i++) {
+            for (var j = -1; j < 2; j++) {
+                if (0 <= x + i && x + i < mine.width && 0 <= y + j && y + j < mine.height) {
+                    if (mine.openMap[x + i][y + j] === 2){
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    window.onload = alert('・自動マインスイーパー\n\nスタートボタンを押して自動化を押すと盤面が自動で解かれます\n途中で自動化が止まったら、開きそうなマスをいくつかクリックしもう一度自動化を押すと再度自動で解かれます');
 
     init();
 })();

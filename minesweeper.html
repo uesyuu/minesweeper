@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>マインスイーパー</title>
-    <link rel="stylesheet" href="minesweeper.css">
 </head>
 <body>
     <div id="display-area"></div>
     <button id="start" style="position:absolute; top:20px; left:20px;">スタート</button>
-    <div id="score-area" style="position:absolute; top:20px; left:170px;">0</div>
-    <div id="result-area" style="position:absolute; top:20px; left:250px;"></div>
-    <form name="form" style="position:absolute; top:20px; left:100px;">
+    <button id="auto" style="position:absolute; top:20px; left:100px;">自動化</button>
+    <form name="form" style="position:absolute; top:20px; left:180px;">
         <select name="difficulty" id="difficulty">
             <option value="easy">初級</option>
             <option value="intermediate">中級</option>
@@ -21,6 +19,8 @@
             <option value="mania">マニア</option>
         </select>
     </form>
+    <div id="score-area" style="position:absolute; top:20px; left:250px;">0</div>
+    <div id="result-area" style="position:absolute; top:20px; left:330px;"></div>
     <script src="minesweeper.js"></script>
 </body>
 </html>
