@@ -21,8 +21,14 @@
     var displayArea = document.getElementById('display-area');
     var resultArea = document.getElementById('result-area');
     var scoreArea = document.getElementById('score-area');
+    var autoArea = document.getElementById('auto-area');
+    var remainMineArea = document.getElementById('remain-mine-area');
     var timer = null;
     var autoClickTimer = null;
+    var autoClickTimerFlag = true;
+    var remainMineCount = 0;
+    var timerSpeed = 500;
+    var autoClickNowFlag = false;
 
     // 盤面の初期化
     function init(difficulty) {
@@ -31,8 +37,11 @@
         mine.startTime = 0;
         mine.endTime = 0;
         resultArea.innerText = '';
-        scoreArea.innerText = '0';
+        scoreArea.innerText = 'タイム:' + 0;
+        //scoreArea.innerText = 0;
+        autoArea.innerText = '';
         clearInterval(autoClickTimer);
+        autoClickTimerFlag = true;
 
         // 盤面の画像の削除
         for (var i = 0; i < mine.width; i++) {
@@ -67,6 +76,8 @@
             mine.height = 48;
             mine.num = 777;
         }
+        remainMineArea.innerText = '残り地雷数:' + mine.num;
+        remainMineCount = mine.num;
 
         // 盤面を全て0に初期化
         for (var i = 0; i < mine.width; i++) {
@@ -134,6 +145,30 @@
         init(document.getElementById('difficulty').selectedIndex);
     };
 
+    document.getElementById('speed').onchange = function () {
+        switch (document.getElementById('speed').selectedIndex) {
+            case 0:
+                timerSpeed = 2000;
+                break;
+            case 1:
+                timerSpeed = 1000;
+                break;
+            case 2:
+                timerSpeed = 500;
+                break;
+            case 3:
+                timerSpeed = 200;
+                break;
+            case 4:
+                timerSpeed = 100;
+                break;
+        }
+        if (autoClickNowFlag) {
+            clearInterval(autoClickTimer);
+            autoClickTimer = setInterval(autoClick, timerSpeed);
+        }
+    };
+
     document.oncontextmenu = function (e) {
         return false;
     };
@@ -180,10 +215,13 @@
             if (mine.openMap[x][y] === 1) {
                 mine.openMap[x][y] = 2;
                 document.getElementById(x + '-' + y).src = 'flag.png';
+                remainMineCount--;
             } else if (mine.openMap[x][y] === 2) {
                 mine.openMap[x][y] = 1;
                 document.getElementById(x + '-' + y).src = 'square.png';
+                remainMineCount++;
             }
+            remainMineArea.innerText = '残り地雷数:' + remainMineCount;
         }
     }
 
@@ -228,11 +266,12 @@
             }
             resultArea.innerText = 'ゲームオーバー…';
             mine.endTime = new Date().getTime();
-            scoreArea.innerText = (mine.endTime - mine.startTime) / 1000;
+            scoreArea.innerText = 'タイム:' + (mine.endTime - mine.startTime) / 1000;
             mine.gameStart = true;
             mine.game = false;
             clearInterval(timer);
             clearInterval(autoClickTimer);
+            autoArea.innerText = '';
         } else if (surroundMineNum(x, y)) {
             //もしmine.map[x,y]が地雷でなく周りに地雷があったら、そのマスのみを開く
             mine.openMap[x][y] = 0;
@@ -254,7 +293,7 @@
         if (clearFlag) {
             resultArea.innerText = 'ゲームクリア！';
             mine.endTime = new Date().getTime();
-            scoreArea.innerText = (mine.endTime - mine.startTime) / 1000;
+            scoreArea.innerText = 'タイム:' + ( (mine.endTime - mine.startTime) / 1000 );
             mine.gameStart = true;
             mine.game = false;
             clearInterval(timer);
@@ -296,29 +335,40 @@
         if (mine.game && (mine.gameStart === false)) {
             var nowTime = new Date().getTime();
             var seconds = (nowTime - mine.startTime) / 1000;
-            scoreArea.innerText = seconds;
+            scoreArea.innerText = 'タイム:' + seconds;
         }
     }
 
     document.getElementById('auto').onclick = function () {
-        autoClick();
-        autoClickTimer = setInterval(autoClick, 500);
+        if (autoClickTimerFlag) {
+            autoClick();
+            autoClickTimer = setInterval(autoClick, timerSpeed);
+            autoArea.innerText = '';
+            autoClickTimerFlag = false;
+        }
     };
 
     var autoClickX = 0;
     var autoClickY = 0;
     var autoClickFlag = true;
     var noFlagFlag = true;
+    var noOpenFlag = true;
+    var noCount = 0;
     function autoClick() {
         if (mine.game) {
+            autoClickNowFlag = true;
             if (mine.gameStart) {
-                var rand = Math.floor(Math.random() * mine.width * mine.height);
-                var top = Math.floor(rand / mine.height);
-                var left = rand % mine.width;
-                leftClickAction(top, left);
-                if (surroundMineNum(top, left) !== 0) {
-                    mine.gameStart = true;
+                var left = 0;
+                var top = 0;
+                while (1) {
+                    left = Math.floor(Math.random() * mine.width);
+                    top = Math.floor(Math.random() * mine.height);
+                    if (surroundMineNum(left, top) === 0) {
+                        break;
+                    }
                 }
+                leftClickAction(left, top);
+                //console.log('start '+left+' '+top);
             } else if (autoClickFlag) {
                 // trueの時、旗を立てる
                 while (1) {
@@ -329,19 +379,21 @@
                         autoClickY++;
                     }
                     if (autoClickY === mine.height) {
-                        console.log('flag ok');
+                        //console.log('flag ok');
+                        //console.log('noFlagFlag '+noFlagFlag);
                         autoClickX = 0;
                         autoClickY = 0;
                         autoClickFlag = false;
                         if (noFlagFlag) {
-                            clearInterval(autoClickTimer);
+                            //clearInterval(autoClickTimer);
                             //autoClickFlag = true;
+                            noCount++;
                         }
                         noFlagFlag = true;
                         return;
                     }
                     if ( mine.openMap[autoClickX][autoClickY] === 0 && surroundMineNum(autoClickX,autoClickY) !== 0 && surroundMineNum(autoClickX,autoClickY) === surroundSquareNum(autoClickX,autoClickY) && surroundMineNum(autoClickX,autoClickY) !== surroundFlagNum(autoClickX,autoClickY)　) {
-                        console.log('flag '+autoClickX+' '+autoClickY);
+                        //console.log('flag '+autoClickX+' '+autoClickY);
                         noFlagFlag = false;
                         break;
                     }
@@ -366,14 +418,31 @@
                         autoClickY++;
                     }
                     if (autoClickY === mine.height) {
-                        console.log('open ok');
+                        //console.log('open ok');
+                        //console.log('noOpenFlag '+noOpenFlag);
+                        //console.log('noCount '+noCount);
                         autoClickX = 0;
                         autoClickY = 0;
                         autoClickFlag = true;
+                        if (noOpenFlag) {
+                            //clearInterval(autoClickTimer);
+                            //autoClickFlag = true;
+                            noCount++;
+                        }
+                        if (noCount >= 6) {
+                            clearInterval(autoClickTimer);
+                            noCount = 0;
+                            autoArea.innerText = '自動ではこれ以上開きません！';
+                            autoClickTimerFlag = true;
+                            autoClickNowFlag = false;
+                        }
+                        noOpenFlag = true;
                         return;
                     }
+                    //console.log('open '+autoClickX+' '+autoClickY);
                     if ( mine.openMap[autoClickX][autoClickY] === 0 && surroundMineNum(autoClickX,autoClickY) !== 0 && surroundMineNum(autoClickX,autoClickY) === surroundFlagNum(autoClickX,autoClickY) && surroundMineNum(autoClickX,autoClickY) !== surroundSquareNum(autoClickX,autoClickY) ) {
-                        console.log('open '+autoClickX+' '+autoClickY);
+                        //console.log('open '+autoClickX+' '+autoClickY);
+                        noOpenFlag = false;
                         break;
                     }
                     autoClickX++;
@@ -414,7 +483,7 @@
         return count;
     }
 
-    window.onload = alert('・自動マインスイーパー\n\nスタートボタンを押して自動化を押すと盤面が自動で解かれます\n途中で自動化が止まったら、開きそうなマスをいくつかクリックしもう一度自動化を押すと再度自動で解かれます');
+    //window.onload = alert('・自動マインスイーパー\n\nスタートボタンを押して自動化を押すと盤面が自動で解かれます\n途中で自動化が止まったら、開きそうなマスをいくつかクリックしもう一度自動化を押すと再度自動で解かれます');
 
     init();
 })();
